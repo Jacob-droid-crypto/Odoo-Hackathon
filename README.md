@@ -32,6 +32,23 @@ All 13 core responsibilities have been architected and implemented:
 
 ---
 
+---
+
+## Member 3: Subscription Management & Billing Engine Deliverables
+
+All 5 core responsibilities and 14 testing scenarios have been implemented:
+
+1. **Subscription Management**: Complete CRUD (`POST /api/subscriptions`, `GET /api/subscriptions`, `GET /api/subscriptions/:id`, `PUT /api/subscriptions/:id`) with quantity, plan, variant, and automatic calculation of unit price, totals, and `nextBillingDate`.
+2. **Subscription Lifecycle State Machine**: Implemented strict transition validation (`DRAFT` -> `QUOTATION` -> `CONFIRMED` -> `ACTIVE` -> `PAUSED` -> `ACTIVE` -> `CLOSED`). Closed subscriptions cannot be reactivated without renewal. Dedicated action endpoints (`/activate`, `/pause`, `/resume`, `/close`, `/renew`).
+3. **Automatic Invoice Generation**: Automatically triggers upon subscription activation and recurring billing due date (`POST /api/invoices/generate`). Generates unique sequential `INV-YYYY-XXXX` invoice numbers, line items, and updates `nextBillingDate`.
+4. **Duplicate Prevention & Database Transactions**: Prevents duplicate invoices for the same subscription and billing cycle (returns `409 Conflict`). All invoice and payment operations execute in database transactions (`prisma.$transaction`). Never generates invoices for paused or closed subscriptions.
+5. **Tax & Discount Calculations**: Implemented mathematical formulas for subtotal, percentage discounts, fixed discounts, and configurable tax rates. Includes real-time preview endpoint (`POST /api/billing/calculate`).
+6. **Payment Management & Tracking**: Manual/simulated payment recording (`POST /api/payments`) supporting UPI, Credit Card, Bank Transfer, Cash, and Stripe. Supports partial payments, verifies outstanding balance, rejects over-payments, and updates invoice status (`UNPAID` -> `PARTIALLY_PAID` -> `PAID`).
+7. **Recurring Billing Engine**: Automated recurring billing engine runner (`POST /api/billing/run`) and due subscriptions discovery (`GET /api/billing/due-subscriptions`).
+8. **Member 4 Analytics Integration**: Dedicated analytics endpoint (`GET /api/billing/analytics`) exposing total revenue, total invoiced, outstanding balances, active subscription counts, overdue counts, and status breakdowns.
+
+---
+
 ## Getting Started
 
 ### 1. Install Dependencies
@@ -66,9 +83,10 @@ Server runs at `http://localhost:5000`.
 ```bash
 npm test
 ```
-All 32 test cases verify authentication, RBAC, products, variants, and plans.
+All 48 test cases across 5 test suites verify Authentication, RBAC, Products, Variants, Plans, Subscriptions, Lifecycle transitions, Automatic Invoicing, Calculations, Payments, Billing Engine, and Analytics.
 
 ---
 
 ## API Documentation
 See [`API_DOCUMENTATION.md`](./API_DOCUMENTATION.md) for full endpoint contracts, payloads, and integration guides for Frontend and teammates.
+
