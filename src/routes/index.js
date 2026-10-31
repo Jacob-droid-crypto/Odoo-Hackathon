@@ -8,6 +8,8 @@ const subscriptionRoutes = require('./subscriptionRoutes');
 const invoiceRoutes = require('./invoiceRoutes');
 const paymentRoutes = require('./paymentRoutes');
 const billingRoutes = require('./billingRoutes');
+const analyticsRoutes = require('./analyticsRoutes');
+const reportRoutes = require('./reportRoutes');
 const { getIsDbConnected } = require('../config/db');
 
 /**
@@ -105,6 +107,31 @@ router.get('/', (req, res) => {
         discounts: 'GET & POST /api/billing/discounts',
         calculatePreview: 'POST /api/billing/calculate',
         analytics: 'GET /api/billing/analytics (ADMIN & STAFF)'
+      },
+      analytics: {
+        dashboard: 'GET /api/analytics/dashboard (ADMIN & STAFF)',
+        revenue: 'GET /api/analytics/revenue (ADMIN & STAFF)',
+        revenueMonthly: 'GET /api/analytics/revenue/monthly (ADMIN & STAFF)',
+        revenueSummary: 'GET /api/analytics/revenue/summary (ADMIN & STAFF)',
+        subscriptions: 'GET /api/analytics/subscriptions (ADMIN & STAFF)',
+        subscriptionStatus: 'GET /api/analytics/subscriptions/status (ADMIN & STAFF)',
+        subscriptionTrends: 'GET /api/analytics/subscriptions/trends (ADMIN & STAFF)',
+        invoices: 'GET /api/analytics/invoices (ADMIN & STAFF)',
+        invoiceStatus: 'GET /api/analytics/invoices/status (ADMIN & STAFF)',
+        invoiceOutstanding: 'GET /api/analytics/invoices/outstanding (ADMIN & STAFF)',
+        payments: 'GET /api/analytics/payments (ADMIN & STAFF)',
+        paymentMethods: 'GET /api/analytics/payments/methods (ADMIN & STAFF)',
+        customers: 'GET /api/analytics/customers (ADMIN & STAFF)',
+        customerGrowth: 'GET /api/analytics/customers/growth (ADMIN & STAFF)',
+        topCustomers: 'GET /api/analytics/customers/top (ADMIN & STAFF)',
+        seedDemo: 'POST /api/analytics/seed-demo (ADMIN & STAFF)'
+      },
+      reports: {
+        revenue: 'GET /api/reports/revenue (ADMIN & STAFF, supports ?format=csv)',
+        subscriptions: 'GET /api/reports/subscriptions (ADMIN & STAFF, supports ?format=csv)',
+        invoices: 'GET /api/reports/invoices (ADMIN & STAFF, supports ?format=csv)',
+        payments: 'GET /api/reports/payments (ADMIN & STAFF, supports ?format=csv)',
+        customers: 'GET /api/reports/customers (ADMIN & STAFF, supports ?format=csv)'
       }
     }
   });
@@ -119,5 +146,7 @@ router.use('/subscriptions', subscriptionRoutes);
 router.use('/invoices', invoiceRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/billing', billingRoutes);
+router.use('/analytics', analyticsRoutes);
+router.use('/reports', reportRoutes);
 
 module.exports = router;
