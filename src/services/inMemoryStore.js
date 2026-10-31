@@ -1,6 +1,14 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { ROLES, PRODUCT_TYPES, BILLING_INTERVALS } = require('../constants/roles');
+const {
+  ROLES,
+  PRODUCT_TYPES,
+  BILLING_INTERVALS,
+  SUBSCRIPTION_STATUSES,
+  INVOICE_STATUSES,
+  PAYMENT_STATUSES,
+  PAYMENT_METHODS
+} = require('../constants/roles');
 
 /**
  * High-speed in-memory data store for testing and fallback when PostgreSQL server is offline.
@@ -315,6 +323,299 @@ class InMemoryStore {
     const year = new Date().getFullYear();
     const seq = String(this.paymentCounter++).padStart(4, '0');
     return `PAY-${year}-${seq}`;
+  }
+
+  seedAnalyticsDemoData() {
+    if (this.subscriptions.size > 0 && this.payments.size > 0) {
+      return { message: 'Demo data already present' };
+    }
+
+    const bcrypt = require('bcryptjs');
+    const pwdHash = bcrypt.hashSync('Customer@Brightloop123!', 10);
+    const now = new Date();
+
+    // 1. Additional Demo Customers
+    const demoCustomers = [
+      { id: 'cust-wayne-001', email: 'bruce@waynecorp.com', firstName: 'Bruce', lastName: 'Wayne', companyName: 'Wayne Enterprises', phone: '+1-555-0201' },
+      { id: 'cust-stark-002', email: 'tony@starkindustries.com', firstName: 'Tony', lastName: 'Stark', companyName: 'Stark Industries', phone: '+1-555-0202' },
+      { id: 'cust-diana-003', email: 'diana@themyscira.org', firstName: 'Diana', lastName: 'Prince', companyName: 'Themyscira Global', phone: '+1-555-0203' },
+      { id: 'cust-parker-004', email: 'peter@dailybugle.com', firstName: 'Peter', lastName: 'Parker', companyName: 'Daily Bugle Media', phone: '+1-555-0204' }
+    ];
+
+    demoCustomers.forEach((cust, idx) => {
+      if (!this.users.has(cust.id)) {
+        const createdDaysAgo = (idx + 1) * 25;
+        const createdAt = new Date(now.getTime() - createdDaysAgo * 86400000);
+        this.users.set(cust.id, {
+          ...cust,
+          role: ROLES.CUSTOMER,
+          passwordHash: pwdHash,
+          isActive: true,
+          resetPasswordToken: null,
+          resetPasswordExpires: null,
+          createdAt,
+          updatedAt: createdAt
+        });
+      }
+    });
+
+    const planMonthly = this.plans.get('plan-monthly-001');
+    const planYearly = this.plans.get('plan-yearly-002');
+    const planWeekly = this.plans.get('plan-weekly-004');
+
+    // 2. Demo Subscriptions
+    const subDefs = [
+      {
+        id: 'sub-demo-001',
+        subNum: 'SUB-2026-0101',
+        customerId: 'customer-user-001',
+        planId: 'plan-monthly-001',
+        plan: planMonthly,
+        quantity: 2,
+        unitPrice: 1200.00,
+        totalAmount: 2400.00,
+        status: SUBSCRIPTION_STATUSES.ACTIVE,
+        daysAgo: 90,
+        nextBillingDays: 5
+      },
+      {
+        id: 'sub-demo-002',
+        subNum: 'SUB-2026-0102',
+        customerId: 'cust-wayne-001',
+        planId: 'plan-yearly-002',
+        plan: planYearly,
+        quantity: 5,
+        unitPrice: 12000.00,
+        totalAmount: 60000.00,
+        status: SUBSCRIPTION_STATUSES.ACTIVE,
+        daysAgo: 180,
+        nextBillingDays: 185
+      },
+      {
+        id: 'sub-demo-003',
+        subNum: 'SUB-2026-0103',
+        customerId: 'cust-stark-002',
+        planId: 'plan-monthly-001',
+        plan: planMonthly,
+        quantity: 10,
+        unitPrice: 1200.00,
+        totalAmount: 12000.00,
+        status: SUBSCRIPTION_STATUSES.ACTIVE,
+        daysAgo: 60,
+        nextBillingDays: 3
+      },
+      {
+        id: 'sub-demo-004',
+        subNum: 'SUB-2026-0104',
+        customerId: 'cust-diana-003',
+        planId: 'plan-weekly-004',
+        plan: planWeekly,
+        quantity: 3,
+        unitPrice: 80.00,
+        totalAmount: 240.00,
+        status: SUBSCRIPTION_STATUSES.PAUSED,
+        daysAgo: 45,
+        nextBillingDays: 10
+      },
+      {
+        id: 'sub-demo-005',
+        subNum: 'SUB-2026-0105',
+        customerId: 'cust-parker-004',
+        planId: 'plan-monthly-001',
+        plan: planMonthly,
+        quantity: 1,
+        unitPrice: 1200.00,
+        totalAmount: 1200.00,
+        status: SUBSCRIPTION_STATUSES.CLOSED,
+        daysAgo: 120,
+        nextBillingDays: null
+      }
+    ];
+
+    subDefs.forEach(s => {
+      const startDate = new Date(now.getTime() - s.daysAgo * 86400000);
+      const nextBillingDate = s.nextBillingDays !== null ? new Date(now.getTime() + s.nextBillingDays * 86400000) : null;
+      this.subscriptions.set(s.id, {
+        id: s.id,
+        subscriptionNumber: s.subNum,
+        customerId: s.customerId,
+        planId: s.planId,
+        quantity: s.quantity,
+        unitPrice: s.unitPrice,
+        totalAmount: s.totalAmount,
+        status: s.status,
+        startDate,
+        expiryDate: null,
+        nextBillingDate,
+        lastBillingDate: startDate,
+        paymentTerms: 'Net 30',
+        autoRenew: true,
+        notes: 'Pre-seeded demo subscription',
+        createdAt: startDate,
+        updatedAt: startDate
+      });
+    });
+
+    // 3. Demo Invoices & Successful Payments
+    const invoiceDefs = [
+      {
+        id: 'inv-demo-001',
+        invNum: 'INV-2026-0101',
+        subId: 'sub-demo-001',
+        custId: 'customer-user-001',
+        status: INVOICE_STATUSES.PAID,
+        amount: 2400.00,
+        paid: 2400.00,
+        daysAgo: 60,
+        paymentMethod: 'UPI'
+      },
+      {
+        id: 'inv-demo-002',
+        invNum: 'INV-2026-0102',
+        subId: 'sub-demo-001',
+        custId: 'customer-user-001',
+        status: INVOICE_STATUSES.PAID,
+        amount: 2400.00,
+        paid: 2400.00,
+        daysAgo: 30,
+        paymentMethod: 'UPI'
+      },
+      {
+        id: 'inv-demo-003',
+        invNum: 'INV-2026-0103',
+        subId: 'sub-demo-002',
+        custId: 'cust-wayne-001',
+        status: INVOICE_STATUSES.PAID,
+        amount: 60000.00,
+        paid: 60000.00,
+        daysAgo: 180,
+        paymentMethod: 'BANK_TRANSFER'
+      },
+      {
+        id: 'inv-demo-004',
+        invNum: 'INV-2026-0104',
+        subId: 'sub-demo-003',
+        custId: 'cust-stark-002',
+        status: INVOICE_STATUSES.PAID,
+        amount: 12000.00,
+        paid: 12000.00,
+        daysAgo: 60,
+        paymentMethod: 'CREDIT_CARD'
+      },
+      {
+        id: 'inv-demo-005',
+        invNum: 'INV-2026-0105',
+        subId: 'sub-demo-003',
+        custId: 'cust-stark-002',
+        status: INVOICE_STATUSES.PAID,
+        amount: 12000.00,
+        paid: 12000.00,
+        daysAgo: 10,
+        paymentMethod: 'CARD'
+      },
+      {
+        id: 'inv-demo-006',
+        invNum: 'INV-2026-0106',
+        subId: 'sub-demo-004',
+        custId: 'cust-diana-003',
+        status: INVOICE_STATUSES.PAID,
+        amount: 240.00,
+        paid: 240.00,
+        daysAgo: 40,
+        paymentMethod: 'CASH'
+      },
+      {
+        id: 'inv-demo-007',
+        invNum: 'INV-2026-0107',
+        subId: 'sub-demo-001',
+        custId: 'customer-user-001',
+        status: INVOICE_STATUSES.PARTIALLY_PAID,
+        amount: 2400.00,
+        paid: 1000.00,
+        daysAgo: 5,
+        paymentMethod: 'UPI'
+      },
+      {
+        id: 'inv-demo-008',
+        invNum: 'INV-2026-0108',
+        subId: 'sub-demo-005',
+        custId: 'cust-parker-004',
+        status: INVOICE_STATUSES.OVERDUE,
+        amount: 1200.00,
+        paid: 0.00,
+        daysAgo: 45,
+        dueDaysAgo: 15,
+        paymentMethod: null
+      },
+      {
+        id: 'inv-demo-009',
+        invNum: 'INV-2026-0109',
+        subId: 'sub-demo-003',
+        custId: 'cust-stark-002',
+        status: INVOICE_STATUSES.CONFIRMED,
+        amount: 12000.00,
+        paid: 0.00,
+        daysAgo: 2,
+        paymentMethod: null
+      }
+    ];
+
+    invoiceDefs.forEach((inv, idx) => {
+      const issuedDate = new Date(now.getTime() - inv.daysAgo * 86400000);
+      const dueDate = inv.dueDaysAgo !== undefined
+        ? new Date(now.getTime() - inv.dueDaysAgo * 86400000)
+        : new Date(issuedDate.getTime() + 15 * 86400000);
+      const outstanding = Math.max(0, inv.amount - inv.paid);
+
+      this.invoices.set(inv.id, {
+        id: inv.id,
+        invoiceNumber: inv.invNum,
+        subscriptionId: inv.subId,
+        customerId: inv.custId,
+        status: inv.status,
+        subtotal: inv.amount,
+        taxTotal: 0.00,
+        discountTotal: 0.00,
+        totalAmount: inv.amount,
+        paidAmount: inv.paid,
+        outstandingAmount: outstanding,
+        issuedDate,
+        dueDate,
+        paidAt: inv.paid > 0 ? issuedDate : null,
+        notes: 'Pre-seeded demo invoice',
+        createdAt: issuedDate,
+        updatedAt: issuedDate
+      });
+
+      // If paid or partially paid, create Payment record
+      if (inv.paid > 0 && inv.paymentMethod) {
+        const payId = `pay-demo-${String(idx + 1).padStart(3, '0')}`;
+        const payNum = `PAY-2026-${String(idx + 1).padStart(4, '0')}`;
+        this.payments.set(payId, {
+          id: payId,
+          paymentNumber: payNum,
+          invoiceId: inv.id,
+          customerId: inv.custId,
+          amount: inv.paid,
+          paymentMethod: inv.paymentMethod,
+          status: PAYMENT_STATUSES.COMPLETED,
+          paymentDate: issuedDate,
+          referenceNote: `Demo payment via ${inv.paymentMethod}`,
+          createdAt: issuedDate,
+          updatedAt: issuedDate
+        });
+      }
+    });
+
+    return {
+      success: true,
+      seeded: {
+        customers: demoCustomers.length,
+        subscriptions: subDefs.length,
+        invoices: invoiceDefs.length,
+        payments: Array.from(this.payments.values()).length
+      }
+    };
   }
 }
 

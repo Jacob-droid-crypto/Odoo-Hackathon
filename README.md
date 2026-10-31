@@ -87,6 +87,80 @@ All 48 test cases across 5 test suites verify Authentication, RBAC, Products, Va
 
 ---
 
+## Member 4: Analytics Dashboard, Financial Reporting & Frontend Integration Deliverables
+
+All 9 core responsibilities and 15 testing scenarios have been implemented:
+
+1. **Admin Analytics Dashboard**: Complete high-level executive dashboard featuring 8 summary KPI cards (Total Customers, Total Products, Active Subscriptions, Total Revenue, Total Invoices, Paid Invoices, Unpaid Invoices, Overdue Invoices), interactive revenue trends, subscription distribution donut, invoice status breakdown, payment channels, and live database activity feed.
+2. **Revenue Analytics Engine**: Dedicated revenue analytics tracking collected revenue strictly from completed payments (`COMPLETED`), monthly revenue progressions, and month-over-month comparative visualizations. Includes date filters (`7days`, `30days`, `3months`, `6months`, `this_year`, custom ranges).
+3. **Subscription Analytics**: Tracks subscription distribution by status (`ACTIVE`, `PAUSED`, `CLOSED`, `DRAFT`), creation trends over time, renewal alerts, and searchable/filterable subscription directory table.
+4. **Invoice & Payment Analytics**: Tracks total receivables, paid, unpaid, and overdue amounts with calculated outstanding balances (`totalAmount - paidAmount`, excluding cancelled invoices). Breakdown of payment methods (UPI, Card, Bank Transfer, Cash, Stripe) with transaction history ledger.
+5. **Customer Analytics**: Customer growth trends, customer subscription table, and top customer leaderboard ranked by actual payments received.
+6. **Financial Reports & CSV Export**: Automated reporting module supporting 5 report categories (Revenue, Subscriptions, Invoices, Payments, Customers) with date range filters, search, and direct RFC 4180 CSV downloads via `?format=csv` streaming attachments.
+7. **Interactive Modern SaaS Frontend**:
+   - Built with **React 19**, **Vite 8**, **Tailwind CSS**, and **Recharts**.
+   - Fully responsive layout featuring collapsible Sidebar navigation, top Navbar with search, live database status, notification bell, instant admin profile switcher, and demo data seeder.
+   - 6 specialized view tabs: Overview Dashboard, Revenue Analytics, Subscriptions, Invoices & Payments, Customer Analytics, and Financial Reports.
+   - Currency configured dynamically (`USD`, `INR`, `EUR`, `GBP`) via centralized utility without hardcoded symbols.
+8. **Dual-Mode Backend Resilience**: All Member 4 services (`analyticsService.js`, `reportService.js`) dynamically support both PostgreSQL (via Prisma ORM) and the in-memory fallback store with idempotent demo seeding, ensuring seamless evaluation in any environment.
+9. **Automated Testing Suite**: 8 comprehensive test suites verifying RBAC protection (401/403 for unauthorized users), accuracy of payment-based revenue calculations, status distributions, CSV file downloads, and demo seeding. All 56 test cases pass (100% pass rate).
+
+---
+
+## Getting Started
+
+### 1. Install Dependencies
+```bash
+# Install backend dependencies
+npm install
+
+# Install frontend dependencies
+npm run frontend:install
+```
+
+### 2. Configure Environment
+Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
+
+### 3. Run Prisma Client Generation & Migrations (Optional / If PostgreSQL is running)
+```bash
+npm run prisma:generate
+npm run prisma:push      # or npm run prisma:migrate
+npm run prisma:seed      # Seeds default Admin, Staff, Customer, and sample data
+```
+
+### 4. Run the Application
+
+#### Option A: Unified Full-Stack Server (Recommended for Evaluation)
+Build the frontend and run the Express server:
+```bash
+npm run frontend:build
+npm start
+```
+- Open `http://localhost:5000/dashboard` in your browser to access the complete SaaS Admin Dashboard.
+- REST API is live at `http://localhost:5000/api`.
+
+#### Option B: Standalone Frontend Dev Server (With Hot-Reload)
+Run the backend and frontend in separate terminals:
+```bash
+# Terminal 1: Backend API
+npm run dev
+
+# Terminal 2: React + Vite Frontend
+npm run frontend:dev
+```
+- Frontend Dev Server runs at `http://localhost:5173`.
+- Backend API runs at `http://localhost:5000`.
+
+### 5. Run the Automated Test Suite
+```bash
+npm test
+```
+All 56 test cases across 6 test suites verify Authentication, RBAC, Products, Plans, Subscriptions, Invoicing, Billing Engine, Analytics Dashboard, and CSV Financial Reports.
+
+---
+
 ## API Documentation
 See [`API_DOCUMENTATION.md`](./API_DOCUMENTATION.md) for full endpoint contracts, payloads, and integration guides for Frontend and teammates.
-

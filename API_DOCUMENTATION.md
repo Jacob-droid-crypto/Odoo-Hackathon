@@ -666,3 +666,115 @@ Supports daily, weekly, monthly, and yearly recurring billing intervals with pol
 }
 ```
 
+---
+
+## 15. Analytics Dashboard & Visualizations Endpoints (`/api/analytics`) — Member 4
+
+> **Lead**: Member 4 – Analytics Dashboard, Financial Reporting & Integration Lead  
+> **Access**: Authenticated (`ADMIN`, `STAFF`)  
+> **Headers**: `Authorization: Bearer <token>`
+
+### 15.1 Admin Analytics Dashboard Summary
+- **Endpoint**: `GET /api/analytics/dashboard`
+- **Description**: Returns all 8 primary summary metrics, subscription status distribution, invoice distribution, and live recent activities.
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Dashboard analytics retrieved successfully",
+  "data": {
+    "totalCustomers": 5,
+    "totalProducts": 2,
+    "activeSubscriptions": 4,
+    "totalRevenue": 88640.00,
+    "totalInvoices": 9,
+    "paidInvoices": 6,
+    "unpaidInvoices": 1,
+    "partiallyPaidInvoices": 1,
+    "overdueInvoices": 1,
+    "totalOutstandingAmount": 14600.00,
+    "subscriptionsDueForRenewal": 2,
+    "currency": "USD",
+    "currencySymbol": "$",
+    "subscriptionDistribution": [
+      { "status": "ACTIVE", "count": 4, "percentage": 80.0 },
+      { "status": "PAUSED", "count": 1, "percentage": 20.0 }
+    ],
+    "invoiceDistribution": [
+      { "status": "PAID", "count": 6 },
+      { "status": "UNPAID", "count": 1 },
+      { "status": "PARTIALLY_PAID", "count": 1 },
+      { "status": "OVERDUE", "count": 1 }
+    ],
+    "recentActivities": [
+      {
+        "id": "act-pay-...",
+        "type": "PAYMENT",
+        "title": "Payment Received",
+        "description": "Payment of $2,400 recorded for Acme Retail Corp",
+        "date": "2026-10-31T05:30:00.000Z",
+        "status": "COMPLETED"
+      }
+    ]
+  }
+}
+```
+
+### 15.2 Revenue Analytics
+- **Endpoint**: `GET /api/analytics/revenue`
+- **Query Parameters**:
+  - `period`: `last_7_days`, `last_30_days`, `last_3_months`, `last_6_months`, `this_year`
+  - `startDate`: Custom ISO start date
+  - `endDate`: Custom ISO end date
+- **Returns**: `summary` (totalRevenue, paymentCount, averagePayment), `monthlyRevenue` array, and `revenueTrends` time series.
+
+### 15.3 Monthly Revenue Breakdown
+- **Endpoint**: `GET /api/analytics/revenue/monthly`
+- **Returns**: Monthly aggregated revenue and transaction counts.
+
+### 15.4 Revenue Summary
+- **Endpoint**: `GET /api/analytics/revenue/summary`
+- **Returns**: Total collected revenue, number of successful payments, and average payment amount.
+
+### 15.5 Subscription Analytics
+- **Endpoint**: `GET /api/analytics/subscriptions`
+- **Sub-endpoints**:
+  - `GET /api/analytics/subscriptions/status` - Distribution by status for donut/pie charts
+  - `GET /api/analytics/subscriptions/trends` - Subscriptions created over time
+
+### 15.6 Invoice Statistics & Outstanding Receivables
+- **Endpoint**: `GET /api/analytics/invoices`
+- **Sub-endpoints**:
+  - `GET /api/analytics/invoices/status` - Invoice distribution for bar charts
+  - `GET /api/analytics/invoices/outstanding` - Table of outstanding receivables with overdue flags (`isOverdue: true`)
+
+### 15.7 Payment Analytics & Methods Distribution
+- **Endpoint**: `GET /api/analytics/payments`
+- **Sub-endpoints**:
+  - `GET /api/analytics/payments/methods` - Payments grouped by method (`UPI`, `Card`, `Bank Transfer`, `Cash`, `Other`)
+
+### 15.8 Customer Analytics
+- **Endpoint**: `GET /api/analytics/customers`
+- **Sub-endpoints**:
+  - `GET /api/analytics/customers/growth` - Customer registrations over time
+  - `GET /api/analytics/customers/top` - Customers ranked by actual payments received
+
+### 15.9 Demo Data Seeder Helper
+- **Endpoint**: `POST /api/analytics/seed-demo`
+- **Description**: Populates realistic historical records for evaluator demonstrations.
+
+---
+
+## 16. Financial & Operational Reports (`/api/reports`) — Member 4
+
+Supports both JSON structured output and direct RFC 4180 CSV export download (`?format=csv` or `?export=csv`).
+
+| Endpoint | Report Type | Filters | CSV Export URL |
+|---|---|---|---|
+| `GET /api/reports/revenue` | Revenue Report | `startDate`, `endDate` | `/api/reports/revenue?format=csv` |
+| `GET /api/reports/subscriptions` | Subscription Report | `startDate`, `endDate`, `status` | `/api/reports/subscriptions?format=csv` |
+| `GET /api/reports/invoices` | Invoice Report | `startDate`, `endDate`, `status` | `/api/reports/invoices?format=csv` |
+| `GET /api/reports/payments` | Payment Report | `startDate`, `endDate`, `method` | `/api/reports/payments?format=csv` |
+| `GET /api/reports/customers` | Customer Report | `startDate`, `endDate` | `/api/reports/customers?format=csv` |
+```
+

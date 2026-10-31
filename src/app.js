@@ -28,8 +28,17 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-// Redirect root / to /api
+const path = require('path');
+
+// Serve compiled static React dashboard
+const frontendDist = path.join(__dirname, '../frontend/dist');
+app.use('/dashboard', express.static(frontendDist));
+
+// Redirect root / to /api (or to /dashboard if browser requests HTML)
 app.get('/', (req, res) => {
+  if (req.accepts('html') && !req.accepts('json')) {
+    return res.redirect('/dashboard');
+  }
   res.redirect('/api');
 });
 
