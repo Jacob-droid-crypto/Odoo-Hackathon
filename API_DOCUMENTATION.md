@@ -389,15 +389,280 @@ Supports daily, weekly, monthly, and yearly recurring billing intervals with pol
 
 ---
 
+---
+
 ## 9. Integration Guide for Other Team Members
 
 - **Member 1 (Frontend)**:
   - Base URL: `http://localhost:5000/api`
   - Save `token` in `localStorage` upon login or registration.
   - Send `Authorization: Bearer <token>` with API calls.
-  - Role check in response: `res.data.user.role` determines whether to render the Admin Dashboard, Staff Portal, or Customer Portal.
-- **Member 3 (Subscriptions & Quotations)**:
-  - Leverage `User`, `Product`, `ProductVariant`, and `SubscriptionPlan` models directly from the schema.
-  - Quotation and Subscription models are ready in [`prisma/schema.prisma`](./prisma/schema.prisma).
-- **Member 4 (Invoicing, Discounts, Payments)**:
-  - `TaxRule`, `DiscountRule`, `Invoice`, `InvoiceLine`, and `Payment` models are ready in [`prisma/schema.prisma`](./prisma/schema.prisma).
+  - Role check in response: `res.data.user.role` determines whether to render Admin Dashboard, Staff Portal, or Customer Portal.
+  - Use `POST /api/billing/calculate` for real-time frontend pricing, tax, and discount previews without creating records.
+- **Member 2 (Backend & Auth Lead)**:
+  - Models, auth middleware, and Prisma schemas integrated seamlessly.
+- **Member 3 (Subscriptions & Billing Engine Lead)**:
+  - Implements complete Subscription Lifecycle, Automatic Invoice Generation, Tax & Discount calculations, and Simulated Payment processing.
+- **Member 4 (Analytics & Reporting Lead)**:
+  - Use `GET /api/billing/analytics` to pull live revenue, invoicing, overdue, outstanding balance, and status breakdown metrics.
+
+---
+
+## 10. Subscription Management Endpoints (`/api/subscriptions`)
+
+### 10.1 Create Subscription
+- **Endpoint**: `POST /api/subscriptions`
+- **Access**: Authenticated (`ADMIN`, `STAFF`, `CUSTOMER`)
+- **Headers**: `Authorization: Bearer <token>`
+- **Request Body**:
+```json
+{
+  "customerId": "customer-user-001",
+  "planId": "plan-monthly-001",
+  "quantity": 2,
+  "startDate": "2026-10-31T00:00:00.000Z",
+  "paymentTerms": "Net 30",
+  "autoRenew": true,
+  "notes": "Corporate rollout",
+  "status": "DRAFT"
+}
+```
+- **Response (201 Created)**: Returns created subscription with unique `subscriptionNumber` (e.g. `SUB-2026-0001`), line items, computed unitPrice, totalAmount, and calculated `nextBillingDate`.
+- *Note*: If `status` is set to `ACTIVE`, an initial invoice is generated automatically.
+
+### 10.2 List Subscriptions
+- **Endpoint**: `GET /api/subscriptions`
+- **Access**: Authenticated (`ADMIN` & `STAFF` see all; `CUSTOMER` sees their own)
+- **Query Parameters**:
+  - `status`: `DRAFT`, `QUOTATION`, `CONFIRMED`, `ACTIVE`, `PAUSED`, `CLOSED`
+  - `search`: Search by customer name, email, subscription ID, or subscriptionNumber
+  - `customerId`: Filter by customer
+  - `page`: Page number (default: 1)
+  - `limit`: Items per page (default: 20)
+
+### 10.3 Get Subscription by ID
+- **Endpoint**: `GET /api/subscriptions/:id`
+- **Access**: Authenticated (Owner `CUSTOMER`, or `ADMIN`/`STAFF`)
+- **Returns**: Full subscription details including customer info, plan, line items, and invoice history.
+
+### 10.4 Update Subscription
+- **Endpoint**: `PUT /api/subscriptions/:id`
+- **Access**: `ADMIN`, `STAFF`
+- **Request Body**:
+```json
+{
+  "quantity": 3,
+  "paymentTerms": "Net 15",
+  "notes": "Updated seat count"
+}
+```
+- **Returns**: Updated subscription with automatically recalculated `totalAmount` and billing dates.
+
+### 10.5 Transition Subscription Status
+- **Endpoint**: `PATCH /api/subscriptions/:id/status`
+- **Access**: Authenticated
+- **Allowed Transitions**:
+  - `DRAFT` -> `QUOTATION` -> `CONFIRMED` -> `ACTIVE` -> `PAUSED` -> `ACTIVE` -> `CLOSED`
+  - `CLOSED` is a permanent terminal state (cannot transition back without renewal workflow).
+- **Request Body**:
+```json
+{
+  "status": "ACTIVE",
+  "reason": "Customer approved quote and signed master agreement"
+}
+```
+
+### 10.6 Subscription Action Endpoints
+- `POST /api/subscriptions/:id/activate` - Activate subscription (auto-generates invoice)
+- `POST /api/subscriptions/:id/pause` - Freeze recurring billing
+- `POST /api/subscriptions/:id/resume` - Resume paused subscription
+- `POST /api/subscriptions/:id/close` - Terminate subscription permanently
+- `POST /api/subscriptions/:id/renew` - Renew subscription term and generate renewal invoice
+
+---
+
+## 11. Invoice Management Endpoints (`/api/invoices`)
+
+### 11.1 Generate Invoice Manually / On-Demand
+- **Endpoint**: `POST /api/invoices/generate`
+- **Access**: `ADMIN`, `STAFF`
+- **Request Body**:
+```json
+{
+  "subscriptionId": "sub-uuid-here",
+  "discountCode": "BRIGHT10",
+  "taxRatePercentage": 18.00,
+  "notes": "Custom billing run"
+}
+```
+- **Rules**:
+  - Automatically verifies subscription is not `PAUSED` or `CLOSED`.
+  - Rejects duplicates for the same subscription and billing cycle (returns `409 Conflict`).
+  - Executes inside a database transaction (`prisma.$transaction`).
+  - Advances subscription `nextBillingDate`.
+
+### 11.2 List Invoices
+- **Endpoint**: `GET /api/invoices`
+- **Access**: Authenticated (`ADMIN` & `STAFF` see all; `CUSTOMER` sees their own)
+- **Query Parameters**:
+  - `status`: `DRAFT`, `UNPAID`, `CONFIRMED`, `PARTIALLY_PAID`, `PAID`, `OVERDUE`, `CANCELLED`
+  - `subscriptionId`: Filter by subscription
+  - `search`: Search invoiceNumber or customer
+  - `page`: Page number
+  - `limit`: Items per page
+
+### 11.3 Get Invoice by ID
+- **Endpoint**: `GET /api/invoices/:id`
+- **Access**: Authenticated (Owner `CUSTOMER`, or `ADMIN`/`STAFF`)
+- **Returns**: Full invoice with breakdown: `subtotal`, `discountTotal`, `taxTotal`, `totalAmount`, `paidAmount`, `outstandingAmount`, line items, and payment history.
+
+### 11.4 Get Invoices by Subscription ID
+- **Endpoint**: `GET /api/invoices/subscription/:subscriptionId`
+- **Access**: Authenticated
+
+---
+
+## 12. Payment Management Endpoints (`/api/payments`)
+
+### 12.1 Record Payment
+- **Endpoint**: `POST /api/payments`
+- **Access**: Authenticated (`CUSTOMER` paying own invoice, or `ADMIN`/`STAFF` recording payment)
+- **Request Body**:
+```json
+{
+  "invoiceId": "inv-uuid-here",
+  "amount": 1000.00,
+  "paymentMethod": "UPI",
+  "referenceNote": "Transaction Ref: UPI98234710",
+  "paymentDate": "2026-10-31T05:30:00.000Z"
+}
+```
+- **Supported Payment Methods**:
+  - `UPI`, `CREDIT_CARD`, `CARD`, `BANK_TRANSFER`, `CASH`, `STRIPE`, `OTHER`
+- **Logic**:
+  - Rejects amounts exceeding current `outstandingAmount` (400 Bad Request).
+  - Rejects payments on already `PAID` or `CANCELLED` invoices.
+  - Updates `paidAmount` and `outstandingAmount`.
+  - Partial payment updates invoice status to `PARTIALLY_PAID`.
+  - Full payment updates invoice status to `PAID` and sets `paidAt`.
+  - Executed inside a database transaction (`prisma.$transaction`).
+
+### 12.2 List Payments
+- **Endpoint**: `GET /api/payments`
+- **Access**: Authenticated
+- **Query Parameters**: `invoiceId`, `customerId`, `paymentMethod`, `status`, `page`, `limit`
+
+### 12.3 Get Payment by ID
+- **Endpoint**: `GET /api/payments/:id`
+- **Access**: Authenticated
+
+### 12.4 Get Payments for an Invoice
+- **Endpoint**: `GET /api/payments/invoice/:invoiceId`
+- **Access**: Authenticated
+
+### 12.5 Get Payments for a Customer
+- **Endpoint**: `GET /api/payments/customer/:customerId`
+- **Access**: Authenticated
+
+---
+
+## 13. Billing Automation, Taxes & Discounts (`/api/billing`)
+
+### 13.1 Run Billing Engine
+- **Endpoint**: `POST /api/billing/run`
+- **Access**: `ADMIN`, `STAFF`
+- **Description**: Scans all `ACTIVE` subscriptions where `nextBillingDate <= now`, generates invoices, and advances their next billing dates. Returns summary of generated invoices, skipped subscriptions, and errors.
+
+### 13.2 View Subscriptions Due for Billing
+- **Endpoint**: `GET /api/billing/due-subscriptions`
+- **Access**: `ADMIN`, `STAFF`
+
+### 13.3 Calculate Pricing & Tax Preview
+- **Endpoint**: `POST /api/billing/calculate`
+- **Access**: Public / Authenticated (Frontend preview tool)
+- **Request Body**:
+```json
+{
+  "unitPrice": 1000.00,
+  "quantity": 2,
+  "discountType": "PERCENTAGE",
+  "discountValue": 10,
+  "taxRate": 18
+}
+```
+- **Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "unitPrice": 1000,
+    "quantity": 2,
+    "subtotal": 2000,
+    "discountType": "PERCENTAGE",
+    "discountValue": 10,
+    "discountAmount": 200,
+    "taxableAmount": 1800,
+    "taxRatePercentage": 18,
+    "taxAmount": 324,
+    "totalAmount": 2124
+  }
+}
+```
+
+### 13.4 Configurable Tax Rates
+- `GET /api/billing/tax-rates` - List active tax rules (e.g. Standard GST 18%, Concessional 5%)
+- `POST /api/billing/tax-rates` - Create a new tax rate rule (`ADMIN` only)
+
+### 13.5 Configurable Discounts
+- `GET /api/billing/discounts` - List discount rules (e.g. `BRIGHT10`, `WELCOME100`)
+- `POST /api/billing/discounts` - Create a promotional discount code (`ADMIN` only)
+
+---
+
+## 14. Analytics & Reporting Metrics for Member 4 (`GET /api/billing/analytics`)
+
+- **Endpoint**: `GET /api/billing/analytics`
+- **Access**: `ADMIN`, `STAFF`
+- **Response Format**:
+```json
+{
+  "success": true,
+  "message": "Billing analytics retrieved successfully",
+  "data": {
+    "financialSummary": {
+      "totalRevenue": 2400.00,
+      "totalInvoiced": 3600.00,
+      "outstandingAmount": 1200.00,
+      "currency": "INR (₹)"
+    },
+    "counts": {
+      "totalSubscriptions": 12,
+      "activeSubscriptions": 8,
+      "pausedSubscriptions": 2,
+      "closedSubscriptions": 2,
+      "totalInvoices": 15,
+      "overdueInvoicesCount": 1,
+      "totalPaymentsRecorded": 14
+    },
+    "subscriptionsByStatus": {
+      "DRAFT": 0,
+      "QUOTATION": 0,
+      "CONFIRMED": 0,
+      "ACTIVE": 8,
+      "PAUSED": 2,
+      "CLOSED": 2
+    },
+    "invoicesByStatus": {
+      "DRAFT": 0,
+      "UNPAID": 3,
+      "CONFIRMED": 0,
+      "PARTIALLY_PAID": 2,
+      "PAID": 10,
+      "OVERDUE": 1,
+      "CANCELLED": 0
+    },
+    "generatedAt": "2026-10-31T05:35:00.000Z"
+  }
+}
+```
+

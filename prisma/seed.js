@@ -123,6 +123,53 @@ async function main() {
   });
   console.log('✓ Yearly plan seeded:', yearlyPlan.name);
 
+  // 7. Seed Tax Rules
+  const standardTax = await prisma.taxRule.create({
+    data: {
+      name: 'Standard GST (18%)',
+      ratePercentage: 18.00,
+      description: 'Standard 18% GST / VAT for SaaS subscriptions',
+      isDefault: true,
+      isActive: true
+    }
+  });
+  console.log('✓ Tax rule seeded:', standardTax.name);
+
+  const reducedTax = await prisma.taxRule.create({
+    data: {
+      name: 'Reduced VAT (5%)',
+      ratePercentage: 5.00,
+      description: 'Concessional 5% tax rate',
+      isDefault: false,
+      isActive: true
+    }
+  });
+  console.log('✓ Tax rule seeded:', reducedTax.name);
+
+  // 8. Seed Discount Rules
+  const discount10 = await prisma.discountRule.create({
+    data: {
+      code: 'BRIGHT10',
+      description: '10% promotional discount for new subscriptions',
+      type: 'PERCENTAGE',
+      value: 10.00,
+      isActive: true
+    }
+  });
+  console.log('✓ Discount rule seeded:', discount10.code);
+
+  const discountFixed = await prisma.discountRule.create({
+    data: {
+      code: 'WELCOME100',
+      description: 'Flat ₹100 welcome credit',
+      type: 'FIXED',
+      value: 100.00,
+      minPurchase: 500.00,
+      isActive: true
+    }
+  });
+  console.log('✓ Discount rule seeded:', discountFixed.code);
+
   console.log('Database seeding completed successfully!');
 }
 

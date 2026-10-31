@@ -4,6 +4,10 @@ const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
 const productRoutes = require('./productRoutes');
 const planRoutes = require('./planRoutes');
+const subscriptionRoutes = require('./subscriptionRoutes');
+const invoiceRoutes = require('./invoiceRoutes');
+const paymentRoutes = require('./paymentRoutes');
+const billingRoutes = require('./billingRoutes');
 const { getIsDbConnected } = require('../config/db');
 
 /**
@@ -68,6 +72,39 @@ router.get('/', (req, res) => {
         getById: 'GET /api/plans/:id',
         update: 'PUT /api/plans/:id (ADMIN only)',
         delete: 'DELETE /api/plans/:id (ADMIN only)'
+      },
+      subscriptions: {
+        create: 'POST /api/subscriptions',
+        list: 'GET /api/subscriptions',
+        getById: 'GET /api/subscriptions/:id',
+        update: 'PUT /api/subscriptions/:id',
+        updateStatus: 'PATCH /api/subscriptions/:id/status',
+        activate: 'POST /api/subscriptions/:id/activate',
+        pause: 'POST /api/subscriptions/:id/pause',
+        resume: 'POST /api/subscriptions/:id/resume',
+        close: 'POST /api/subscriptions/:id/close',
+        renew: 'POST /api/subscriptions/:id/renew'
+      },
+      invoices: {
+        generate: 'POST /api/invoices/generate (ADMIN & STAFF)',
+        list: 'GET /api/invoices',
+        getById: 'GET /api/invoices/:id',
+        getBySubscription: 'GET /api/invoices/subscription/:subscriptionId'
+      },
+      payments: {
+        record: 'POST /api/payments',
+        list: 'GET /api/payments',
+        getById: 'GET /api/payments/:id',
+        getByInvoice: 'GET /api/payments/invoice/:invoiceId',
+        getByCustomer: 'GET /api/payments/customer/:customerId'
+      },
+      billing: {
+        runEngine: 'POST /api/billing/run (ADMIN & STAFF)',
+        dueSubscriptions: 'GET /api/billing/due-subscriptions (ADMIN & STAFF)',
+        taxRates: 'GET & POST /api/billing/tax-rates',
+        discounts: 'GET & POST /api/billing/discounts',
+        calculatePreview: 'POST /api/billing/calculate',
+        analytics: 'GET /api/billing/analytics (ADMIN & STAFF)'
       }
     }
   });
@@ -78,5 +115,9 @@ router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/products', productRoutes);
 router.use('/plans', planRoutes);
+router.use('/subscriptions', subscriptionRoutes);
+router.use('/invoices', invoiceRoutes);
+router.use('/payments', paymentRoutes);
+router.use('/billing', billingRoutes);
 
 module.exports = router;

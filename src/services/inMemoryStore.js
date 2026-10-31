@@ -12,6 +12,16 @@ class InMemoryStore {
     this.products = new Map();
     this.variants = new Map();
     this.plans = new Map();
+    this.subscriptions = new Map();
+    this.subscriptionLines = new Map();
+    this.invoices = new Map();
+    this.invoiceLines = new Map();
+    this.payments = new Map();
+    this.taxRules = new Map();
+    this.discountRules = new Map();
+    this.subscriptionCounter = 1;
+    this.invoiceCounter = 1;
+    this.paymentCounter = 1;
     this.initDefaultData();
   }
 
@@ -205,10 +215,106 @@ class InMemoryStore {
       createdAt: new Date(),
       updatedAt: new Date()
     });
+
+    // Seed Tax Rules
+    const tax1Id = 'tax-rule-001';
+    this.taxRules.set(tax1Id, {
+      id: tax1Id,
+      name: 'Standard GST (18%)',
+      ratePercentage: 18.00,
+      description: 'Standard 18% GST / VAT for SaaS subscriptions',
+      isDefault: true,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    const tax2Id = 'tax-rule-002';
+    this.taxRules.set(tax2Id, {
+      id: tax2Id,
+      name: 'Reduced VAT (5%)',
+      ratePercentage: 5.00,
+      description: 'Concessional 5% tax rate',
+      isDefault: false,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    const tax3Id = 'tax-rule-003';
+    this.taxRules.set(tax3Id, {
+      id: tax3Id,
+      name: 'Zero Tax (0%)',
+      ratePercentage: 0.00,
+      description: 'Zero-rated export or exempt services',
+      isDefault: false,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    // Seed Discount Rules
+    const disc1Id = 'disc-rule-001';
+    this.discountRules.set(disc1Id, {
+      id: disc1Id,
+      code: 'BRIGHT10',
+      description: '10% promotional discount for new subscriptions',
+      type: 'PERCENTAGE',
+      value: 10.00,
+      minPurchase: null,
+      minQuantity: null,
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-12-31'),
+      maxUses: 1000,
+      usedCount: 0,
+      targetType: 'SUBSCRIPTION',
+      targetProductId: null,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    const disc2Id = 'disc-rule-002';
+    this.discountRules.set(disc2Id, {
+      id: disc2Id,
+      code: 'WELCOME100',
+      description: 'Flat ₹100 welcome credit',
+      type: 'FIXED',
+      value: 100.00,
+      minPurchase: 500.00,
+      minQuantity: null,
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-12-31'),
+      maxUses: 500,
+      usedCount: 0,
+      targetType: 'SUBSCRIPTION',
+      targetProductId: null,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
   }
 
   generateId() {
     return crypto.randomUUID();
+  }
+
+  generateSubscriptionNumber() {
+    const year = new Date().getFullYear();
+    const seq = String(this.subscriptionCounter++).padStart(4, '0');
+    return `SUB-${year}-${seq}`;
+  }
+
+  generateInvoiceNumber() {
+    const year = new Date().getFullYear();
+    const seq = String(this.invoiceCounter++).padStart(4, '0');
+    return `INV-${year}-${seq}`;
+  }
+
+  generatePaymentNumber() {
+    const year = new Date().getFullYear();
+    const seq = String(this.paymentCounter++).padStart(4, '0');
+    return `PAY-${year}-${seq}`;
   }
 }
 

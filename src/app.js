@@ -28,6 +28,11 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
+// Redirect root / to /api
+app.get('/', (req, res) => {
+  res.redirect('/api');
+});
+
 // Prefix all endpoints with /api
 app.use('/api', apiRouter);
 
